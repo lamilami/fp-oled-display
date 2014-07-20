@@ -307,7 +307,7 @@ uint8_t i2c_transmit(uint8_t byte) {
 			; // Make sure, clock is low!
 		if (byte & 0x80) SDA_DDR &= ~(1 << SDA); // Dataline high
 		else SDA_DDR |= (1 << SDA); // Dataline low
-		_delay_us(1);
+		//_delay_us(1);
 		SCL_DDR &= ~(1 << SCL); // Clock high
 		byte <<= 1;
 	}
@@ -315,9 +315,9 @@ uint8_t i2c_transmit(uint8_t byte) {
 	while ((SCL_PIN & (1 << SCL)))
 		; // Make sure, clock is low!
 	SDA_DDR &= ~(1 << SDA); // Dataline high
-	_delay_us(1);
+	//_delay_us(1);
 	SCL_DDR &= ~(1 << SCL); // Clock high
-	_delay_us(1);
+	//_delay_us(1);
 	ack = !((SDA_PIN & (1 << SDA)));
 	SCL_DDR |= (1 << SCL); // Clock low
 
@@ -345,9 +345,9 @@ uint8_t i2c_receive(uint8_t ack) {
 
 	if (ack) SDA_DDR &= ~(1 << SDA); // Dataline low if ack is to be sent
 
-	_delay_us(1);
+	//_delay_us(1);
 	SCL_DDR &= ~(1 << SCL); // Clock high
-	_delay_us(1);
+	//_delay_us(1);
 	SCL_DDR |= (1 << SCL); // Clock low
 	while ((SCL_PIN & (1 << SCL)))
 		; // Make sure, clock is low!
@@ -361,12 +361,14 @@ uint8_t i2c_receive(uint8_t ack) {
 void oled_display(void) {
 	oled_send(0x00, 0); // low col = 0
 	oled_send(0x10, 0); // hi col = 0
-	for(uint16_t i=0; i<8; i++) {
-		oled_send(0xB0+i, 0);
-		for(uint8_t j=0; j<128; j++) {
-			oled_send(buffer[i*128+j], 1);
-		}
+	oled_send(0xB0, 0);
+	i2c_start(); // I2C-Start
+	i2c_transmit(OLED_ADDRESS); // Slave address
+	i2c_transmit(0x40); // Set OLED Data mode
+	for(uint16_t j=0; j<1024; j++) {
+		i2c_transmit(buffer[j]); // Transmit command
 	}
+	i2c_stop(); // End I2C communication
 }
 
 void oled_send(uint8_t command, uint8_t datamode) {
