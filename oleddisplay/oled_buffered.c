@@ -7,7 +7,9 @@
 
 #include "global.h"
 
-#ifdef OLED_H_
+#ifdef OLEDBUFFERED_H_
+
+static uint8_t buffer[1025] = {0};
 
 const unsigned char oledchars[] PROGMEM = { 0x00, 0x00, 0x00, 0x00, 0x00, // ''
 		0x3E, 0x5B, 0x4F, 0x5B, 0x3E, // ''
@@ -356,7 +358,16 @@ uint8_t i2c_receive(uint8_t ack) {
 }
 
 
-
+void oled_display(void) {
+	oled_send(0x00, 0); // low col = 0
+	oled_send(0x10, 0); // hi col = 0
+	for(uint16_t i=0; i<8; i++) {
+		oled_send(0xB0+i, 0);
+		for(uint8_t j=0; j<128; j++) {
+			oled_send(buffer[i*128+j], 1);
+		}
+	}
+}
 
 void oled_send(uint8_t command, uint8_t datamode) {
 	i2c_start(); // I2C-Start
@@ -521,21 +532,10 @@ void oled_draw_rectangle(uint8_t xstart, uint8_t ystart, uint8_t xstop, uint8_t 
 }
 
 void oled_display_clear(void) {
-	oled_send(0x00, 0); // low col = 0
-	oled_send(0x10, 0); // hi col = 0
-
-	for (uint8_t i = 0; i < 8; i++) {
-		oled_send(0xB0 | i, 0); // Page
-		// send a bunch of data in one transmission
-		i2c_start(); // I2C-Start
-		i2c_transmit(OLED_ADDRESS); // Slave address
-		i2c_transmit(0x40); // Set OLED Data mode
-
-		for (uint8_t x = 0; x < 128; x++) {
-			i2c_transmit(0);
-		}
-		i2c_stop(); // End I2C communication
+	for(uint16_t i = 0; i<1024; i++) {
+		buffer[i] = 0;
 	}
+	oled_display();
 }
 
 void oled_putc(char c, uint8_t line, uint8_t column) {
@@ -546,7 +546,8 @@ void oled_putc(char c, uint8_t line, uint8_t column) {
 	for (uint8_t i = 0; i < 6; i++) {
 		if (i == 5) pixelline = 0x00;
 		else pixelline = pgm_read_byte(oledchars + (c * 5) + i);
-		oled_draw_pattern(pixelline, (column - 1) * 6 + i, (line - 1) * 8);
+		buffer[(line - 1) * 128 + (column - 1) * 6 + i] = pixelline;
+		oled_display();
 	}
 }
 
