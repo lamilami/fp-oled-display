@@ -16,16 +16,12 @@ int main(void) {
 	oled_init();
 	oled_display_clear();
 
-	oled_draw_rectangle(0, 0, 36, 24);
+	oled_draw_rectangle(2, 2, 38, 26);
+	oled_draw_rectangle(6, 6, 50, 36);
+	oled_draw_rectangle(4, 4, 42, 16);
+	oled_puts("FP", 2, 4);
 
-	oled_send(0x00, 0); // low col
-	oled_send(0x10, 0); // hi col
-	oled_send(0xB0, 0); // Page
-
-	oled_send(0xAE, 0); // DISPLAY OFF
-	oled_read(1);
-	oled_send(0xAF, 0); // DISPLAY OFF
-	oled_read(1);
+	oled_display();
 
 	while (1) {
 		if ((UCSR0A & (1 << RXC0)) && 1) {
@@ -36,8 +32,7 @@ int main(void) {
 		}
 
 		if(update) {
-			oled_display_clear();
-			oled_puts(uart_field, 1, 1);
+			oled_puts(uart_field, 5, 3);
 			update = 0;
 		}
 
