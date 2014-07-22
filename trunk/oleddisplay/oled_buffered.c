@@ -374,7 +374,8 @@ void oled_send(uint8_t command, uint8_t datamode) {
 	i2c_transmit(OLED_ADDRESS); // Slave address
 	if (datamode) {
 		i2c_transmit(0x40); // Set OLED Data mode
-	} else {
+	}
+	else {
 		i2c_transmit(0x80); // Set OLED Command mode
 	}
 	i2c_transmit(command); // Transmit command
@@ -388,7 +389,8 @@ uint8_t oled_read(uint8_t datamode) {
 	i2c_transmit(OLED_ADDRESS); // Slave address
 	if (datamode) {
 		i2c_transmit(0x40); // Set OLED Data mode
-	} else {
+	}
+	else {
 		i2c_transmit(0x80); // Set OLED Command mode
 	}
 	i2c_start();
@@ -449,18 +451,18 @@ void oled_init(void) {
 void oled_draw_pixel(uint8_t x, uint8_t y) {
 	if (x > 127 || y > 63) return;
 
-	y &= 0x07;
 	uint8_t mask = 1, val = 0;
 	for (uint8_t i = 0; i < 8; i++) {
-		if (i == y) val |= mask;
+		if (i == (y & 0x07)) val |= mask;
 		mask <<= 1;
 	}
-	buffer[(y << 4) + x] |= val;
+	y >>= 3;
+	buffer[(y << 7) + x] |= val;
 
 	oled_send(0x00 | (x & 0x0F), 0); // low col
 	oled_send(0x10 | (x >> 4), 0); // hi col
-	oled_send(0xB0 | (y >> 3), 0); // Page
-	oled_send(buffer[(y << 4) + x], 1);
+	oled_send(0xB0 | y, 0); // Page
+	oled_send(buffer[(y << 7) + x], 1);
 }
 
 void oled_draw_pattern(char c, uint8_t x, uint8_t y) {
@@ -473,47 +475,49 @@ void oled_draw_pattern(char c, uint8_t x, uint8_t y) {
 	oled_send(c, 1);
 }
 
-
 static void swapvals(uint8_t *x1, uint8_t *x2) {
 	uint8_t temp = *x1;
 	*x1 = *x2;
 	*x2 = temp;
 }
 
-
 void oled_draw_vertical_line(uint8_t x, uint8_t ystart, uint8_t ystop) {
-	uint8_t mask;
+	uint8_t mask, ystarttemp = (ystart&0x07), ystoptemp = (ystop&0x07);
+	ystart >>= 3;
+	ystop >>= 3;
 
+	// Restpixel obere Page
 	oled_send(0x00 | (x & 0x0F), 0); // low col
 	oled_send(0x10 | (x >> 4), 0); // hi col
-	oled_send(0xB0 | (ystart >> 3), 0); // Page
+	oled_send(0xB0 | ystart, 0); // Page
+
 	mask = 0xFF;
-	for (uint8_t i = 0; i < (ystart & 0x07); i++) {
+	for (uint8_t i = 0; i < ystarttemp; i++) {
 		mask <<= 1;
 	}
-	buffer[(ystart << 4) + x] |= mask;
-	oled_send(buffer[(ystart << 4) + x] , 1);
+	buffer[(ystart << 7) + x] |= mask;
+	oled_send(buffer[(ystart << 7) + x], 1);
 
-
-	for (uint8_t p = (ystart >> 3) + 1; p < (ystop >> 3); p++) {
-		buffer[(p<<7) + x] |= 0xFF;
+	// Mittlere Pages
+	for (uint8_t p = ystart + 1; p < ystop; p++) {
+		buffer[(p << 7) + x] |= 0xFF;
 		oled_send(0x00 | (x & 0x0F), 0); // low col
 		oled_send(0x10 | (x >> 4), 0); // hi col
 		oled_send(0xB0 | p, 0); // Page
 		oled_send(0xFF, 1);
 	}
 
+	// Restpixel untere Page
 	oled_send(0x00 | (x & 0x0F), 0); // low col
 	oled_send(0x10 | (x >> 4), 0); // hi col
-	oled_send(0xB0 | (ystop >> 3), 0); // Page
+	oled_send(0xB0 | ystop, 0); // Page
 	mask = 0xFF;
-	for (uint8_t i = 7; i > (ystop & 0x07); i--) {
+	for (uint8_t i = 7; i > ystoptemp; i--) {
 		mask >>= 1;
 	}
-	buffer[(ystop << 4) + x] |= mask;
-	oled_send(buffer[(ystop << 4) + x] , 1);
+	buffer[(ystop << 7) + x] |= mask;
+	oled_send(buffer[(ystop << 7) + x], 1);
 }
-
 
 void oled_draw_rectangle(uint8_t xstart, uint8_t ystart, uint8_t xstop, uint8_t ystop) {
 
@@ -521,7 +525,10 @@ void oled_draw_rectangle(uint8_t xstart, uint8_t ystart, uint8_t xstop, uint8_t 
 	if (xstart > xstop) swapvals(&xstart, &xstop);
 	if (ystart > ystop) swapvals(&ystart, &ystop);
 
+	// Linke Linie
 	oled_draw_vertical_line(xstart, ystart, ystop);
+
+	// Rechte Linie
 	oled_draw_vertical_line(xstop, ystart, ystop);
 
 	// Obere Linie
@@ -550,7 +557,7 @@ void oled_putc(char c, uint8_t line, uint8_t column) {
 	for (uint8_t i = 0; i < 6; i++) {
 		if (i == 5) pixelline = 0x00;
 		else pixelline = pgm_read_byte(oledchars + (c * 5) + i);
-		oled_draw_pattern(pixelline, ((column - 1) << 2) + ((column - 1) << 1) + i, ((line - 1) << 7));
+		oled_draw_pattern(pixelline, ((column - 1) << 2) + ((column - 1) << 1) + i, ((line - 1) << 3));
 		buffer[((line - 1) << 7) + ((column - 1) << 2) + ((column - 1) << 1) + i] = pixelline;
 	}
 }
