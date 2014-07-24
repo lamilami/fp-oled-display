@@ -8,27 +8,8 @@
 #ifndef OLED_H_
 #define OLED_H_
 
-#define SDAPORT	B
-#define SDA		0
-#define SCLPORT	D
-#define SCL		7
-
 #define OLED_ADDRESS 0x78
 
-
-#define SDA_PORT			PORT(SDAPORT)
-#define SDA_DDR				DDR(SDAPORT)
-#define SDA_PIN				PIN(SDAPORT)
-
-#define SCL_PORT			PORT(SCLPORT)
-#define SCL_DDR				DDR(SCLPORT)
-#define SCL_PIN				PIN(SCLPORT)
-
-void i2c_init(void);
-void i2c_start(void);
-void i2c_stop(void);
-uint8_t i2c_transmit(uint8_t byte);
-uint8_t i2c_receive(uint8_t ack);
 
 void oled_send(uint8_t command, uint8_t datamode);
 uint8_t oled_read(uint8_t datamode);

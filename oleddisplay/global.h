@@ -16,10 +16,13 @@
 #include <avr/wdt.h>
 #include "portmakros.h"
 #include "uart.h"
+#include "i2c.h"
 #include "oled_buffered.h"
+#include "crcchk.h"
+#include "1wire.h"
 
 #define SIZE	16
 #define TIMEOUTVAL			F_CPU*4
-#define MAX_ARRAYSIZE		31
+#define MAX_ARRAYSIZE		180
 
 #endif /* GLOBAL_H_ */
