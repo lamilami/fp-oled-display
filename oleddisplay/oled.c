@@ -267,9 +267,6 @@ const unsigned char oledchars[] PROGMEM = { 0x00, 0x00, 0x00, 0x00, 0x00, // ''
 		0x4C, 0x91, 0x90, 0x91, 0x7C };
 
 void i2c_init(void) {
-	SDA_PORT &= (1 << SDA);
-	SCL_PORT &= (1 << SCL);
-
 	SDA_DDR &= ~(1 << SDA); // Dataline high first
 	SCL_DDR &= ~(1 << SCL); // Then clock high
 }
