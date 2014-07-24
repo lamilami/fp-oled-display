@@ -267,131 +267,7 @@ const unsigned char oledchars[] PROGMEM = { 0x00, 0x00, 0x00, 0x00, 0x00, // ''
 		0x00, 0x3C, 0x3C, 0x3C, 0x3C, // ''
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x4C, 0x91, 0x90, 0x91, 0x7C };
 
-void i2c_init(void) {
-	SDA_DDR &= ~(1 << SDA); // Dataline high first
-	while (!(SDA_PIN & 1 << SDA))
-		; // Wait as long as Dataline is low
 
-	SCL_DDR &= ~(1 << SCL); // Clock high
-	while (!(SCL_PIN & 1 << SCL))
-		; // Wait as long as Clock is low
-}
-
-void i2c_start(void) {
-	SDA_DDR &= ~(1 << SDA); // Dataline high
-	while (!(SDA_PIN & 1 << SDA))
-		; // Wait as long as Dataline is low
-
-	SCL_DDR &= ~(1 << SCL); // Clock high
-	while (!(SCL_PIN & 1 << SCL))
-		; // Wait as long as Clock is low
-
-	SDA_DDR |= (1 << SDA); // Pull dataline low
-	while ((SDA_PIN & 1 << SDA))
-		; // Wait as long as Dataline is high
-
-	SCL_DDR |= (1 << SCL); // Then clock low
-	while ((SCL_PIN & 1 << SCL))
-		; // Wait as long as Clock is high
-}
-
-void i2c_stop(void) {
-	SCL_DDR |= (1 << SCL); // Clock low
-	while ((SCL_PIN & 1 << SCL))
-		; // Wait as long as Clock is high
-
-	SDA_DDR |= (1 << SDA); // Pull dataline low
-	while ((SDA_PIN & 1 << SDA))
-		; // Wait as long as Dataline is high
-
-	SCL_DDR &= ~(1 << SCL); // Clock high
-	while (!(SCL_PIN & 1 << SCL))
-		; // Wait as long as Clock is low
-
-	SDA_DDR &= ~(1 << SDA); // Dataline high
-	while (!(SDA_PIN & 1 << SDA))
-		; // Wait as long as Dataline is low
-}
-
-uint8_t i2c_transmit(uint8_t byte) {
-	uint8_t ack;
-
-	for (uint8_t i = 8; i; i--) {
-		SCL_DDR |= (1 << SCL); // Clock low
-		while ((SCL_PIN & 1 << SCL))
-			; // Wait as long as Clock is high
-
-		if (byte & 0x80) {
-			SDA_DDR &= ~(1 << SDA); // Dataline high
-			while (!(SDA_PIN & 1 << SDA))
-				; // Wait as long as Dataline is low
-		}
-
-		else {
-			SDA_DDR |= (1 << SDA); // Pull dataline low
-			while ((SDA_PIN & 1 << SDA))
-				; // Wait as long as Dataline is high
-		}
-
-		SCL_DDR &= ~(1 << SCL); // Clock high
-		while (!(SCL_PIN & 1 << SCL))
-			; // Wait as long as Clock is low
-
-		byte <<= 1;
-	}
-	SCL_DDR |= (1 << SCL); // Clock low
-	while ((SCL_PIN & 1 << SCL))
-		; // Wait as long as Clock is high
-
-	SDA_DDR &= ~(1 << SDA); // Dataline high
-	while (!(SDA_PIN & 1 << SDA))
-		; // Wait as long as Dataline is low
-
-	SCL_DDR &= ~(1 << SCL); // Clock high
-	while (!(SCL_PIN & 1 << SCL))
-		; // Wait as long as Clock is low
-
-	ack = !((SDA_PIN & (1 << SDA)));
-
-	SCL_DDR |= (1 << SCL); // Clock low
-	while ((SCL_PIN & 1 << SCL))
-		; // Wait as long as Clock is high
-
-	return ack; // 1 if ACK received, 0 if not
-}
-
-uint8_t i2c_receive(uint8_t ack) {
-	uint8_t byte = 0;
-
-	SDA_DDR &= ~(1 << SDA); // Dataline high
-
-	for (uint8_t i = 8; i; i--) {
-		SCL_DDR |= (1 << SCL); // Clock low
-		while ((SCL_PIN & (1 << SCL)))
-			; // Make sure, clock is low!
-		SCL_DDR &= ~(1 << SCL); // Clock high
-		while (!(SCL_PIN & (1 << SCL)))
-			; // Make sure, clock is high!
-		byte <<= 1;
-		if (SDA_PIN & (1 << SDA)) byte |= 1;
-	}
-	SCL_DDR |= (1 << SCL); // Clock low
-	while ((SCL_PIN & (1 << SCL)))
-		; // Make sure, clock is low!
-
-	if (ack) SDA_DDR &= ~(1 << SDA); // Dataline low if ack is to be sent
-
-	//_delay_us(1);
-	SCL_DDR &= ~(1 << SCL); // Clock high
-	//_delay_us(1);
-	SCL_DDR |= (1 << SCL); // Clock low
-	while ((SCL_PIN & (1 << SCL)))
-		; // Make sure, clock is low!
-
-	SDA_DDR &= ~(1 << SDA); // Dataline high
-
-	return byte;
-}
 
 void oled_display(void) {
 	oled_send(0x00, 0); // low col = 0
@@ -411,7 +287,8 @@ void oled_send(uint8_t command, uint8_t datamode) {
 	i2c_transmit(OLED_ADDRESS); // Slave address
 	if (datamode) {
 		i2c_transmit(0x40); // Set OLED Data mode
-	} else {
+	}
+	else {
 		i2c_transmit(0x80); // Set OLED Command mode
 	}
 	i2c_transmit(command); // Transmit command
@@ -425,7 +302,8 @@ uint8_t oled_read(uint8_t datamode) {
 	i2c_transmit(OLED_ADDRESS); // Slave address
 	if (datamode) {
 		i2c_transmit(0x40); // Set OLED Data mode
-	} else {
+	}
+	else {
 		i2c_transmit(0x80); // Set OLED Command mode
 	}
 	i2c_start();
