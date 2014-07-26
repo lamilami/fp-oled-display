@@ -175,17 +175,43 @@ int16_t w1_tempmeas(void) {
 	return temp;
 }
 
-#ifdef UART_H_
-void w1_temp_to_uart(int32_t temp, int8_t* temp_int, uint16_t* temp_digit) {
-	int8_t temp_int_loc = temp / 10;
-	uint16_t temp_digit_loc = temp % 10;
-	uart_shownum(temp_int_loc, 'd');
-	uart_putc('.');
-	uart_shownum(temp_digit_loc, 'd');
-	uart_puts("°C");
-	*temp_int = temp_int_loc;
-	*temp_digit = temp_digit_loc;
+void w1_temp_to_array(int32_t tempmalzehn, char* tempfield, uint8_t signdigit) {
+	/* 0 < signdigit < 3
+	 * 0 ... show no sign, no digit
+	 * 1 ... show no sign, digit
+	 * 2 ... show sign, no digit
+	 * 3 ... show sign, digit
+	 */
+	signdigit &= 0x03;
+	uint8_t fieldcntr = 0, neededlength = 1;
+
+	int8_t temp_int_loc = tempmalzehn / 10;
+	uint8_t temp_digit_loc = tempmalzehn % 10;
+
+	if(tempmalzehn<0) {
+		tempfield[fieldcntr++] = '-';
+		tempmalzehn = -tempmalzehn;
+	}
+	int8_t zahlkopie = temp_int_loc;
+	while (zahlkopie /= 10) {
+		neededlength++;
+	}
+	if((signdigit & 0x02) && !fieldcntr) {
+		tempfield[fieldcntr++] = '+';
+	}
+	for (uint8_t i = neededlength + fieldcntr; (i - fieldcntr); i--) {
+		tempfield[i-1] = (temp_int_loc % 10) + 0x30;
+		temp_int_loc /= 10;
+	}
+	if(signdigit & 1) {
+		tempfield[neededlength + fieldcntr] = '.';
+		tempfield[neededlength + fieldcntr + 1] = (temp_digit_loc % 10) + 0x30;
+		tempfield[neededlength + fieldcntr + 2] = '\0';
+	}
+	else {
+		tempfield[neededlength + fieldcntr] = '\0';
+	}
 }
-#endif
+
 
 #endif

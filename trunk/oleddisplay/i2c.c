@@ -45,10 +45,10 @@ uint8_t i2c_transmit(uint8_t byte) {
 	I2C_DATA_RELEASE;
 
 	I2C_CLOCK_HIGH;
-	ack = !((SDA_PIN & (1 << SDA)));
+	ack = (!(SDA_PIN & (1 << SDA)));
 	I2C_CLOCK_LOW;
 
-	return ack; // 1 if ACK received, 0 if not
+	return ack; // 1 ack received, 0 no ACK received
 }
 
 uint8_t i2c_receive(uint8_t ack) {
@@ -63,13 +63,9 @@ uint8_t i2c_receive(uint8_t ack) {
 		if (SDA_PIN & (1 << SDA)) byte |= 1;
 	}
 	I2C_CLOCK_LOW;
-
 	if (ack) I2C_DATA_LOW;
-
-
 	I2C_CLOCK_HIGH;
 	I2C_CLOCK_LOW;
-
 	I2C_DATA_RELEASE;
 
 	return byte;
