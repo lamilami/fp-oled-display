@@ -42,6 +42,6 @@ void w1_temp_conf(int8_t th, int8_t tl, uint8_t res);
 uint16_t w1_read_temp(uint8_t *id);
 int16_t w1_tempread_to_celsius(uint16_t temp);
 int16_t w1_tempmeas(void);
-void w1_temp_to_uart(int32_t temp, int8_t* temp_int, uint16_t* temp_digit);
+void w1_temp_to_array(int32_t tempmalzehn, char* tempfield, uint8_t signdigit);
 
 #endif

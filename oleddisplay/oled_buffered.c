@@ -187,7 +187,7 @@ const unsigned char oledchars[] PROGMEM = { 0x00, 0x00, 0x00, 0x00, 0x00, // ''
 		0x00, 0x00, 0x7B, 0x00, 0x00, // ''
 		0x08, 0x14, 0x2A, 0x14, 0x22, // ''
 		0x22, 0x14, 0x2A, 0x14, 0x08, // ''
-		0xAA, 0x00, 0x55, 0x00, 0xAA, // ''
+		0x06, 0x09, 0x09, 0x06, 0x00, // '°'
 		0xAA, 0x55, 0xAA, 0x55, 0xAA, // ''
 		0x00, 0x00, 0x00, 0xFF, 0x00, // ''
 		0x10, 0x10, 0x10, 0xFF, 0x00, // ''
@@ -266,8 +266,6 @@ const unsigned char oledchars[] PROGMEM = { 0x00, 0x00, 0x00, 0x00, 0x00, // ''
 		0x3C, 0x41, 0x40, 0x21, 0x7C, // 'ü' = 252
 		0x00, 0x3C, 0x3C, 0x3C, 0x3C, // ''
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x4C, 0x91, 0x90, 0x91, 0x7C };
-
-
 
 void oled_display(void) {
 	oled_send(0x00, 0); // low col = 0
@@ -394,7 +392,8 @@ static void swapvals(uint8_t *x1, uint8_t *x2) {
 	*x2 = temp;
 }
 
-void oled_draw_vertical_line(uint8_t x, uint8_t ystart, uint8_t ystop) {
+static void oled_draw_vertical_line(uint8_t x, uint8_t ystart, uint8_t ystop) {
+	if (ystart > ystop) swapvals(&ystart, &ystop);
 	uint8_t mask, ystarttemp = (ystart & 0x07), ystoptemp = (ystop & 0x07);
 	ystart >>= 3;
 	ystop >>= 3;
@@ -432,8 +431,83 @@ void oled_draw_vertical_line(uint8_t x, uint8_t ystart, uint8_t ystop) {
 	oled_send(buffer[(ystop << 7) + x], 1);
 }
 
-void oled_draw_rectangle(uint8_t xstart, uint8_t ystart, uint8_t xstop, uint8_t ystop) {
+static void oled_draw_horizontal_line(uint8_t xstart, uint8_t xstop, uint8_t y) {
+	if (xstart > 127 || xstop > 127 || y > 63) return;
 
+	if (xstart > xstop) swapvals(&xstart, &xstop);
+
+	uint8_t mask = 1, val = 0;
+	for (uint8_t i = 0; i < 8; i++) {
+		if (i == (y & 0x07)) val |= mask;
+		mask <<= 1;
+	}
+	y >>= 3;
+
+	oled_send(0x00 | (xstart & 0x0F), 0); // low col
+	oled_send(0x10 | (xstart >> 4), 0); // hi col
+	oled_send(0xB0 | y, 0); // Page
+
+	for (uint8_t x = xstart; x <= xstop; x++) {
+		buffer[(y << 7) + x] |= val;
+		oled_send(buffer[(y << 7) + x], 1);
+	}
+}
+
+void oled_draw_line(uint8_t xstart, uint8_t ystart, uint8_t xstop, uint8_t ystop) {
+	if (xstart > 127 || xstop > 127 || ystart > 63 || ystop > 63) return;
+
+	uint8_t deltax, deltay, yinv;
+	int16_t m, t, xcalc, ycalc;
+
+	if (xstart > xstop) {
+		swapvals(&xstart, &xstop);
+		swapvals(&ystart, &ystop);
+	}
+
+	oled_draw_pixel(xstart, ystart);
+	oled_draw_pixel(xstop, ystop);
+
+	// Spezialfälle
+	if (xstart == xstop) {
+		oled_draw_vertical_line(xstart, ystart, ystop);
+		return;
+	}
+	if (ystart == ystop) {
+		oled_draw_horizontal_line(xstart, xstop, ystart);
+		return;
+	}
+
+	// Allgemeiner Fall
+	deltax = xstop - xstart;
+	yinv = ystart > ystop;
+	deltay = (yinv ? ystart - ystop : ystop - ystart);
+
+	if (deltax > deltay) { // If there are more "x-pixels" than "y-pixels", y has to be calculated for every x
+		m = (deltay * 100 + deltax / 2) / deltax;
+		if(yinv) m = -m;
+		t = (int16_t)(ystart * 100 - m * xstart);
+
+		for (uint8_t x = xstart; x <= xstop; x++) {
+			ycalc = m * x + t;
+			ycalc = (ycalc + 50) / 100;
+			oled_draw_pixel(x, ycalc);
+		}
+	}
+	else { // Or the other way round if there are more "y-pixels" than "x-pixels"
+		m = (deltax * 100 + deltay / 2) / deltay;
+		if(yinv) m = -m;
+		t = (int16_t)(xstart * 100 - m * ystart);
+
+		if(yinv) swapvals(&ystart, &ystop);
+		for (uint8_t y = ystart; y <= ystop; y++) {
+			xcalc = m * y + t;
+			xcalc = (xcalc + 50) / 100;
+			oled_draw_pixel(xcalc, y);
+		}
+	}
+}
+
+void oled_draw_rectangle(uint8_t xstart, uint8_t ystart, uint8_t xstop, uint8_t ystop) {
 	if (xstart > 127 || xstop > 127 || ystart > 63 || ystop > 63) return;
 	if (xstart > xstop) swapvals(&xstart, &xstop);
 	if (ystart > ystop) swapvals(&ystart, &ystop);
@@ -445,13 +519,43 @@ void oled_draw_rectangle(uint8_t xstart, uint8_t ystart, uint8_t xstop, uint8_t 
 	oled_draw_vertical_line(xstop, ystart, ystop);
 
 	// Obere Linie
-	for (uint8_t x = xstart + 1; x < xstop; x++) {
-		oled_draw_pixel(x, ystart);
-	}
+	oled_draw_horizontal_line(xstart, xstop, ystart);
 
 	// Untere Linie
-	for (uint8_t x = xstart + 1; x < xstop; x++) {
-		oled_draw_pixel(x, ystop);
+	oled_draw_horizontal_line(xstart, xstop, ystop);
+}
+
+void oled_draw_circle(uint8_t xcenter, uint8_t ycenter, uint8_t radius) {
+	if (xcenter > 127 || ycenter > 63 || xcenter + radius > 127 || ycenter + radius > 63 || xcenter < radius
+			|| ycenter < radius) return;
+
+	uint16_t xl, y, r = radius * radius, erg, delta, deltamin;
+	uint8_t marker = 0;
+
+	oled_draw_pixel(xcenter - radius, ycenter);
+	oled_draw_pixel(xcenter + radius, ycenter);
+	oled_draw_pixel(xcenter, ycenter - radius);
+	oled_draw_pixel(xcenter, ycenter + radius);
+
+	y = radius;
+	for (xl = 0; xl <= radius; xl++) {
+		deltamin = 65000;
+		for (uint8_t run = 0; run <= radius; run++) {
+			erg = xl * xl + (y - run) * (y - run);
+			delta = (erg > r) ? erg - r : r - erg;
+			if (delta < deltamin) {
+				deltamin = delta;
+				marker = run;
+			}
+		}
+		y -= marker;
+
+		for (uint8_t j = 0; j <= marker; j++) {
+			oled_draw_pixel(xcenter + xl, ycenter + y + j);
+			oled_draw_pixel(xcenter - xl, ycenter + y + j);
+			oled_draw_pixel(xcenter + xl, ycenter - y - j);
+			oled_draw_pixel(xcenter - xl, ycenter - y - j);
+		}
 	}
 }
 
@@ -485,6 +589,32 @@ void oled_puts(char *str, uint8_t line, uint8_t column) {
 			if (line > 8) line = 1;
 		}
 	}
+}
+
+
+void oled_arrize(int32_t zahl, char *feld, uint8_t digits, uint8_t vorzeichen) {
+	uint8_t neededlength = 1;
+
+	if (vorzeichen || (zahl < 0)) {
+		vorzeichen = 1;
+		feld[0] = (zahl < 0) ? '-' : '+';
+		if (zahl < 0) zahl = -zahl;
+	}
+
+	if (digits < 1) digits = 1;
+
+	int32_t zahlkopie = zahl;
+
+	while (zahlkopie /= 10) {
+		neededlength++;
+	}
+	if (neededlength < digits) neededlength = digits;
+
+	for (uint8_t i = neededlength + vorzeichen; (i - vorzeichen); i--) {
+		feld[i-1] = (zahl % 10) + 0x30;
+		zahl /= 10;
+	}
+	feld[neededlength + vorzeichen] = '\0';
 }
 
 #endif
