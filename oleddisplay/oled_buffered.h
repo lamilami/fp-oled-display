@@ -16,6 +16,7 @@ void oled_send(uint8_t command, uint8_t datamode);
 uint8_t oled_read(uint8_t datamode);
 void oled_init(void);
 void oled_display_clear(void);
+void oled_color_invert(uint8_t on);
 
 void oled_draw_pixel(uint8_t x, uint8_t y);
 void oled_draw_pattern(char c, uint8_t x, uint8_t y);

@@ -30,8 +30,8 @@ int main(void) {
 	oled_puts("Bär", 4, 18);
 	oled_draw_circle(64, 32, 12);
 	oled_draw_circle(64, 32, 1);
-	oled_draw_pixel(59, 26);
-	oled_draw_pixel(69, 26);
+	oled_draw_pixel(60, 27);
+	oled_draw_pixel(68, 27);
 	oled_draw_line(61, 39, 67, 39);
 	oled_draw_pixel(60, 38);
 	oled_draw_pixel(68, 38);
@@ -69,10 +69,12 @@ int main(void) {
 			update = 0;
 		}
 
-		if (tempflag) {
+		if (tempflag > 3) {
+			oled_color_invert(1);
 			tempflag = 0;
 			temperature = w1_tempmeas();
 			w1_temp_to_array(temperature, tfeld, 1);
+			oled_color_invert(0);
 			oled_puts(tfeld, 8, 9);
 			oled_puts("°C", 8, 13);
 		}
@@ -82,5 +84,5 @@ int main(void) {
 }
 
 ISR (TIMER1_OVF_vect) {
-	tempflag = 1;
+	tempflag++;
 }
