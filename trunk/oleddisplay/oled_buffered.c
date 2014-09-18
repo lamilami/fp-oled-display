@@ -566,6 +566,15 @@ void oled_display_clear(void) {
 	oled_display();
 }
 
+void oled_color_invert(uint8_t on) {
+	if(on) {
+		oled_send(0xA7, 0);
+	}
+	else {
+		oled_send(0xA6, 0);
+	}
+}
+
 void oled_putc(char c, uint8_t line, uint8_t column) {
 	if ((line > 8) || (column > 21)) return; // Clip right and bottom
 
